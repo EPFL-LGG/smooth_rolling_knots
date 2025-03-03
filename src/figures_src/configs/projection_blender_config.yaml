@@ -1,0 +1,5 @@
+# view_location: [3, -8, 2] # rolling
+view_location: [2, -2, 1] # camera
+ortho_scale: 3
+# view_rotation: [1.2566370614359172, 0, 1.0471975511965976] # rolling
+view_rotation: [1.3002702927357754, 0, 0.5672320068981571] # camera

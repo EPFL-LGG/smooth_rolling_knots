@@ -1,0 +1,19 @@
+a: 0.6
+p: 3
+q: 2
+n: 1000
+z: 1
+bevel_depth: 0.04
+bevel_resolution: 40
+color: [0, 0.25, 0.53, 1]
+pos: [0, 0, 0]
+convex_hull_points: False
+closed: True
+proj: None
+proj_dist: -2
+rotation_axis: [0, 0, 0]
+# initial_knot_rotation_angle: -1.5707963267948966 # -pi/2
+initial_angle: 0
+fill: False
+shadow: True  
+

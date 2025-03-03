@@ -1,0 +1,3 @@
+[submodule "ext/torchcubicspline"]
+	path = ext/torchcubicspline
+	url = git@github.com:qbecky/torchcubicspline.git
