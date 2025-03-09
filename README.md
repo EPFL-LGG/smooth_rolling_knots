@@ -1,5 +1,5 @@
 # smooth_rolling_knots
-Code related to the Smooth-Rolling Knots project. See paper [here](./data/smooth_rolling_knots.pdf).
+Code related to the Smooth-Rolling Knots project.
 
 ![rolling knot gif](./data/smooth_rolling_knots_demo.gif)
 
