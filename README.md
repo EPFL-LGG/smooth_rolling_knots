@@ -1,7 +1,7 @@
 # smooth_rolling_knots
 Code related to the Smooth-Rolling Knots project. See paper [here](./data/smooth_rolling_knots.pdf).
 
-![rolling knot gif](./data/rolling_knot.gif)
+![rolling knot gif](./data/smooth_rolling_knots_demo.gif)
 
 `notebooks/generate_objs.ipynb`: generates the results presented in the paper.
 
