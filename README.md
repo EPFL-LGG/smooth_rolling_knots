@@ -1,5 +1,5 @@
 # Smooth Rolling Knots
-Code related to the Smooth-Rolling Knots paper. The `.stl` files of the knots shown in Figure 3 are available [here](data/knots/figure_3_knots) in both [one dimensional](data/knots) and [bevelled](data/knots/figure_3_knots/) formats (`data/knots/figure_3_knots/no_bevel` and `data/knots/figure_3_knots/bevel`).
+Code related to the Smooth-Rolling Knots paper. The object files of the knots shown in Figure 3 are available [here](data/knots/figure_3_knots) in both [one dimensional](data/knots) `.obj` and [bevelled](data/knots/figure_3_knots/) `.stl` formats (`data/knots/figure_3_knots/no_bevel` and `data/knots/figure_3_knots/bevel`).
 
 ![rolling knot gif](./data/smooth_rolling_knots_demo.gif)
 
