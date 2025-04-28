@@ -37,7 +37,7 @@ def uniform_values(v):
     '''Uniformly distribute the values by minimizing the (soft) max variation from the mean.'''
     return torch.norm(v - torch.mean(v), p=2)
 
-def compute_curvature(pts, closed_curve=True, angles=True):
+def compute_curvature(pts, closed_curve=True, angles=True, length_proportional=False):
     if closed_curve:
     # assert closed_curve, "Only closed curves are currently supported"
         assert torch.allclose(pts[0], pts[-1], rtol=1.0e-5), "First and last points must overlap for closed curves"
@@ -52,6 +52,12 @@ def compute_curvature(pts, closed_curve=True, angles=True):
         cos_angle = torch.clamp(torch.sum(tangents[1:] * tangents[:-1], dim=1), -1.0, 1.0)
         sin_angle = torch.clamp(torch.sum(normals * normals, dim=1), -1.0, 1.0)
         curvature_angles = torch.atan2(sin_angle, cos_angle)
+
+    if length_proportional:
+        edge_lengths = torch.linalg.norm(pts[1:] - pts[:-1], dim=1)
+        l = (edge_lengths[1:] + edge_lengths[:-1]) / 2
+        curvature = curvature_angles * l/torch.mean(l) 
+        return curvature
 
     if angles:
         return curvature_angles
@@ -148,6 +154,7 @@ class CurveOpti():
         self.curvature_damping = 0.0
 
         self.tdr_damping = 2.0
+        
 
     def init_TDR(self, alpha, beta, gamma, n_tdr):
         
@@ -214,6 +221,13 @@ class CurveOpti():
         self.pts_int_indices1 = np.arange(self.n_pts_ext_per_seg, self.n_pts_ext_per_seg + self.n_pts_int_per_seg)
         self.pts_ext_indices2 = np.arange(self.n_pts_ext_per_seg + self.n_pts_int_per_seg, 2*self.n_pts_ext_per_seg + self.n_pts_int_per_seg)
         # pts_int_indices2 = np.arange(2*self.n_pts_ext_per_seg + self.n_pts_int_per_seg, 2*self.n_pts_ext_per_seg + 2*self.n_pts_int_per_seg)
+
+        # determine the curvature range along which to compute the curvature
+        curv_pts = int(self.factor_cps_to_pts * self.curvature_cps)
+        rng1 = self.pts_int_indices1[-curv_pts//2], self.pts_ext_indices2[self.n_pts_ext_per_seg//2]
+        rng2 = self.pts_ext_indices1[-self.n_pts_ext_per_seg//2], self.pts_int_indices1[curv_pts//2]
+        self.curvature_range_1 = np.arange(*rng1)
+        self.curvature_range_2 = np.arange(*rng2)
 
         # 1) Define the spline
         ts_cps = torch.linspace(0.0, 1.0, self.n_cps)
@@ -309,10 +323,10 @@ class CurveOpti():
             # obj += self.w_curvature * toxch.sum(w * curvature**2)
 
             # curv_pts = int((self.factor_cps_to_pts - 1) * 2)
-            curv_pts = int(self.factor_cps_to_pts * self.curvature_cps)
 
-            junction_pts_1 = pts[np.arange(self.pts_int_indices1[-curv_pts//2], self.pts_ext_indices2[curv_pts//2])]
-            junction_pts_2 = pts[np.arange(self.pts_ext_indices1[-curv_pts//2], self.pts_int_indices1[curv_pts//2])]
+            # compute the curvature centered around the junction points
+            junction_pts_1 = pts[self.curvature_range_1]
+            junction_pts_2 = pts[self.curvature_range_2]
 
             curv1 = compute_curvature(junction_pts_1, closed_curve=False)
             curv2 = compute_curvature(junction_pts_2, closed_curve=False)
@@ -427,6 +441,7 @@ class CurveOpti():
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
         ax.plot(*pts_opt.T, 'o-', label='Optimized', color='blue')
+        ax.plot(*pts_opt[self.curvature_range_1].T, 'o-', label='Curvature range', color='orange')
         ax.plot(*pts_opt_interior_symmetrized.T, 'o-', label='Interior symmetrized', color='red')
         ax.plot(*knot_full.T, 'o-', label='Full knot', color='green', alpha=0.5, markersize=1)
         ax.legend()

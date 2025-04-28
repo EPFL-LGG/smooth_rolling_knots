@@ -41,7 +41,7 @@ def reload_modules():
     import sys
 
     # module names
-    my_modules = ["simulation_src", "geometry_src", "src.utils", "visualization_src", "figures_src", "blender_plots"]
+    my_modules = ["simulation_src", "geometry_src", "src.utils", "visualization_src", "figures_src", "blender_plots", "optimization_src"]
 
     sys_modules = [(name, mod) for name, mod in sys.modules.items() if any([my_name in name for my_name in my_modules])]
     for name, mod in sys_modules:

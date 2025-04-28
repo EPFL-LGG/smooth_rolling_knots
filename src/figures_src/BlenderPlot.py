@@ -4,8 +4,8 @@ from mathutils import Vector, Euler
 from scipy.spatial import ConvexHull
 from src.optimization_src.TDR_projection import split_index_list_in_two_segments, get_exterior_interior_indices
 
-from visualization_src.data_utils import load_knot
-from geometry_src.rolliness import rolliness, rolling_trajectory
+from src.utils import load_knot
+from src.geometry_src.rolliness import rolliness, rolling_trajectory
 import numpy as np
 from src.geometry_src.geom_utils import  *
 from scipy.spatial.transform import Rotation as R
@@ -93,6 +93,7 @@ class BlenderPlot():
 
         if bpy.context.scene.render.engine == 'CYCLES':
             bpy.context.scene.cycles.samples = 5
+            bpy.context.scene.cycles.sample_clamp_indirect = 1.5
 
 
         bpy.context.scene.render.image_settings.file_format = 'PNG'
@@ -291,19 +292,32 @@ class BlenderPlot():
             bpy.context.view_layer.depsgraph.update()
 
             # add material
-            mat = bpy.data.materials.new(name=name)
+            mat = bpy.data.materials.new(name=name, )
             obj.data.materials.append(mat)
             mat.diffuse_color = config.color
-
-
-            # Add Principled BSDF node and assign the correct alpha
             mat.use_nodes = True
-            bsdf = mat.node_tree.nodes.get("Principled BSDF")
-            if bsdf:
-                bsdf.inputs['Base Color'].default_value = config.color
-                bsdf.inputs['Alpha'].default_value = config.color[3]
-                bsdf.inputs['Roughness'].default_value = 0.95
+            
+            # principled bsdf by default
+            shader = mat.node_tree.nodes.get("Principled BSDF")
 
+            if config.shader == "diffuse":
+                mat.node_tree.nodes.remove(shader)
+                
+                output_node = mat.node_tree.nodes.get("Material Output")
+                assert output_node, "Error getting material output node"
+
+                shader = mat.node_tree.nodes.new(type='ShaderNodeBsdfDiffuse')
+                assert shader, f"Could not create {config.shader} shader" 
+                shader.inputs['Color'].default_value = config.color
+
+                mat.node_tree.links.new(shader.outputs['BSDF'], output_node.inputs['Surface'])
+
+            else: 
+                shader.inputs['Base Color'].default_value = config.color
+                shader.inputs['Alpha'].default_value = config.color[3]
+                shader.inputs['Roughness'].default_value = 0.95
+            
+            
             # Set blend mode to alpha blend
             if config.color[3] < 1:
                 mat.blend_method = 'BLEND'
@@ -373,7 +387,6 @@ class BlenderPlot():
         bpy.context.view_layer.update()
         bpy.context.view_layer.depsgraph.update()
 
-
     def plot_hull(self, points, config):
 
         bpy.ops.object.select_all(action='DESELECT')
@@ -429,7 +442,6 @@ class BlenderPlot():
         #update 
         bpy.context.view_layer.update()
         bpy.context.view_layer.depsgraph.update()
-
 
     # add plane to scene
     def add_enclosing_planes(self, x, y, z, planes = True): 
@@ -529,3 +541,14 @@ class BlenderPlot():
         # Apply modifications to plane mesh in blender
         # plane_handle.data.update_tag()
         # bpy.context.view_layer.depsgraph.update()
+
+    def export_knot(self, path):
+        bpy.ops.object.select_all(action='DESELECT')
+        # select knot
+        knot = bpy.data.objects["knot"]
+        knot.select_set(True)
+        bpy.context.view_layer.objects.active = knot
+
+        # export as STL
+        bpy.ops.export_mesh.stl(filepath=path, use_selection=True, global_scale=1.0, axis_up='Y', axis_forward='-Z')
+        print(f"Exported knot to {path}")

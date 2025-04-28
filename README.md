@@ -1,18 +1,13 @@
 # Smooth Rolling Knots
-Code related to the Smooth-Rolling Knots project.
+Code related to the Smooth-Rolling Knots paper. The `.stl` files of the knots shown in Figure 3 are available [here](data/knots/figure_3_knots) in both [one dimensional](data/knots) and [bevelled](data/knots/figure_3_knots/) formats (`data/knots/figure_3_knots/no_bevel` and `data/knots/figure_3_knots/bevel`).
 
 ![rolling knot gif](./data/smooth_rolling_knots_demo.gif)
 
-`notebooks/generate_objs.ipynb`: generates the results presented in the paper.
-
-`blender_plots.py`: scripts blender to render the knots and populates `data/blender_plots`
-
-`notebooks/figures.ipynb`: assembles the figures from the paper
 
 # Optimization overview
 
 $$
-K^* \, = \, \argmin_{\mathbf{q}} \; w_{\text{knot}} E_{\text{knot}}(\mathbf{q}) 
+\mathbf{q}^* \, = \, \argmin_{\mathbf{q}} \; w_{\text{knot}} E_{\text{knot}}(\mathbf{q}) 
 +  w_{\text{curvature}}E_{\text{curvature}}(\mathbf{q}) 
 + w_{\text{TDR}}E_{\text{TDR}}(\mathbf{q}) 
 $$
@@ -27,8 +22,9 @@ See the optimiziation implementation in `src/optimization_src/curve_opti.py:opti
 
 # Usage
 
+The notebook `notebooks/generate_objs.ipynb` contains the code and parameters used to generate the knots from Figure 3 from the paper. 
+
 ```
-# Default parameters:
 curve_opt_params = {
     'w_tdr': 1,
     'w_curvature': 1,
@@ -42,15 +38,15 @@ curve_opt_params = {
 
 Parameter description:
 - `w_tdr` and `w_curvature`: weights for the TDR and curvature energy terms.
-- `curvature_cps`: is a depth factor for which to minimize curvature around the junction points between the TDR and the interior of the knot. It is a multiplier to the `factor_cps_to_pts` parameter.
+- `curvature_cps`: is a depth factor for which to minimize curvature around the junction points between the TDR and the interior of the knot. It is a multiplier to the `factor_cps_to_pts` parameter, with as a result the number of points centered around the junction to use for the curvature computation. 
 - `tdr_damping`: damping factors for the curvature and TDR energy terms, dissipating the energies in the knot's center. A value of 0 means no damping, 1 means linear damping, 2 means quadratic damping, etc.
 - `n_cps_int_per_seg`: number of control points per segment in the knot's interior polyline.
 - `factor_cps_to_pts`: number of points per control point in the knot's polyline.
 - `max_iter`: maximum number of iterations for the optimization.
 
 The following recipe has been found to work well when dealing with more complex knots: 
-1. Apply the method with $w_{\text{curvature}}=0$ and $w_{\text{TDR}}=0$ to find the `n_cps_int_per_seg` and `factor_cps_to_pts` that give a good polyline representation of the knot.
+1. Apply the method with $w_{\text{curvature}}=0$ and $w_{\text{TDR}}=0$ to find the `n_cps_int_per_seg` and `factor_cps_to_pts` that give a good polyline representation of the knot. NOTE: By giving the optimization more degrees of freedom through 'n_cps_int_per_seg', the smoothness of the knot may be affected. If the knot is not smooth enough, and the curvature weight `w_curvature` is already high, maybe you've increased the number of control points too much.   
 2. Use the `w_tdr` and `tdr_damping` parameters to find the good TDR vs. knot interior preservation balance.
-3. Apply the `w_curvature`and `curvature_damping` parameters to smooth things out. Curvature minimization isn't local, since we're dealing with polylines. If the junction curvature minimization affects the interior of the knot too much, increase the `n_cps_int_per_seg` parameter.
+3. Apply the `w_curvature`and `curve_pts` parameters to smooth things out. Curvature minimization isn't local, since we're dealing with polylines. NOTE: If the junction curvature minimization affects the interior of the knot too much, increase the `n_cps_int_per_seg` parameter.
 
 **Don't forget to check if $\rho=0$! There is no guarantee for this preservation.**

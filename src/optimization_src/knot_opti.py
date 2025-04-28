@@ -28,6 +28,7 @@ class KnotOpti():
 
     def default_params(self):
         self.save_path = "../data/knots/"
+        self.n = None
 
     def name(self, x):
         a = self.a
@@ -121,7 +122,7 @@ class KnotOpti():
 
         # Check that the interior points are still inside the TDR's convex hull
         co.check_interior(pts_opt)
-        
+
         return co.reconstruct_full_knot(pts_opt)
 
     def optimize(self):

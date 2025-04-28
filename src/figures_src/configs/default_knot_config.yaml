@@ -16,4 +16,5 @@ rotation_axis: [0, 0, 0]
 initial_angle: 0
 fill: False
 shadow: True  
+shader: "principled"
 
