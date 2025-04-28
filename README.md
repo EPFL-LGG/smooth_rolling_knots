@@ -13,7 +13,7 @@ $$
 where 
 - $E_{\text{knot}}$ is a deformation knot energy computed by using a point-to-polyline distance.
 - $E_{\text{TDR}}$ is a distance penalty from the smooth-rolling TDRs.
-- $E_{\text{curvature}}$ is a curvature energy that penalizes curvature in the interior.
+- $E_{\text{curvature}}$ is a curvature energy that penalizes curvature at the junction between the knot's interior and the smooth-rolling TDR's external lobes.
 - $w_{\text{knot}}$, $w_{\text{curvature}}$, and $w_{\text{TDR}}$ are user defined weights that control the importance of each term (with fixed $w_{\text{knot}}=1$). 
 
 See the optimiziation implementation in `src/optimization_src/curve_opti.py:optimize_curve_params` .
