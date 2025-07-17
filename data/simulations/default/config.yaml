@@ -1,0 +1,69 @@
+!!python/object:src.simulation_src.config.Config
+blender_config: !!python/object:src.simulation_src.config.BlenderConfig
+  autoplay: false
+  bevel: false
+  convex_hull: false
+  initial_angle: 0.5235987755982988
+  initial_knot_rotation_angle: -1.5707963267948966
+  initial_knot_rotation_axis:
+  - 0
+  - 0
+  - 0
+  knot_location:
+  - 0
+  - 0
+  - 0
+  loop: true
+  make_uniform: false
+  plane_angle: 0.032724923474893676
+  plane_scale:
+  - 50
+  - 50
+  - 1
+  show_cm: true
+  view_distance: 16
+  view_location:
+  - 3
+  - -8
+  - 2
+  view_rotation:
+  - 1.2566370614359172
+  - 0
+  - 1.0471975511965976
+data_config: !!python/object:src.simulation_src.config.DataConfig
+  clear_data: true
+  data_path: ./data/simulations/default/traces
+  online: false
+  path: ./data/simulations/default
+knot_config: !!python/object:src.simulation_src.config.KnotConfig
+  a: 0.5831
+  config:
+    a: 0.5831
+    n: 10000
+    p: 3
+    q: 2
+  n: 10000
+  name: knot
+  p: 3
+  q: 2
+  stretch: 1
+  type: Morton
+multi_config: false
+multi_knot_configs:
+  a75_base: data/simulations/configs/cm_75_base.yaml
+  a75_opt: data/simulations/configs/cm_75_opt.yaml
+plot_config: !!python/object:src.simulation_src.config.PlotConfig
+  cm: true
+  cp: false
+  label: None
+  show_deviation: false
+  show_variance: false
+  variance: false
+simulation_config: !!python/object:src.simulation_src.config.SimConfig
+  frame_end: 1024
+  initial_force:
+  - 0
+  - -3.266666666666667
+  - -9.8
+  initial_force_length: 10
+  target_distance: 10

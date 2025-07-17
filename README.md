@@ -1,7 +1,7 @@
 # Smooth Rolling Knots
 Code related to the Smooth-Rolling Knots paper. The object files of the knots shown in Figure 3 are available [here](data/knots/figure_3_knots) in both [one dimensional](data/knots) `.obj` and [bevelled](data/knots/figure_3_knots/) `.stl` formats (`data/knots/figure_3_knots/no_bevel` and `data/knots/figure_3_knots/bevel`).
 
-![rolling knot gif](./data/smooth_rolling_knots_demo.gif)
+![rolling knot gif](./data/smk.gif)
 
 
 # Optimization overview
@@ -42,9 +42,14 @@ Parameter description:
 - `factor_cps_to_pts`: number of points per control point in the knot's polyline.
 - `max_iter`: maximum number of iterations for the optimization.
 
-The following recipe has been found to work well when dealing with more complex knots: 
-1. Apply the method with $w_{\text{curvature}}=0$ and $w_{\text{TDR}}=0$ to find the `n_cps_int_per_seg` and `factor_cps_to_pts` that give a good polyline representation of the knot. NOTE: By giving the optimization more degrees of freedom through 'n_cps_int_per_seg', the smoothness of the knot may be affected. If the knot is not smooth enough, and the curvature weight `w_curvature` is already high, maybe you've increased the number of control points too much.   
+The process to find the correct parameters can become quite time consuming for more complex knots. The following recipe has been found to work well: 
+1. Apply the method with $w_{\text{curvature}}=0$ and $w_{\text{TDR}}=0$ to find the `n_cps_int_per_seg` and `factor_cps_to_pts` that give a good polyline representation of the knot. 
 2. Use the `w_tdr` and `tdr_damping` parameters to find the good TDR vs. knot interior preservation balance.
-3. Apply the `w_curvature`and `curvature_cps` parameters to smooth things out. Curvature minimization isn't local, since we're dealing with polylines. NOTE: If the junction curvature minimization affects the interior of the knot too much, increase the `n_cps_int_per_seg` parameter.
+3. Apply the `w_curvature`and `curvature_cps` parameters to smooth things out. Curvature minimization isn't local, since we're dealing with polylines. 
+
+Notes: 
+- By giving the optimization more degrees of freedom through 'n_cps_int_per_seg', the smoothness of the knot may be affected. If the knot is not smooth enough, and the curvature weight `w_curvature` is already high, maybe you've increased the number of control points too much.   
+- If the junction curvature minimization affects the interior of the knot too much, increase the `n_cps_int_per_seg` parameter.
+
 
 **Don't forget to check if $\rho=0$! There is no guarantee for this preservation.**
