@@ -1,0 +1,26 @@
+knot_config:
+  name: cm_75_base
+  type: Morton
+  stretch: 1
+  config:
+    a: 0.75
+    p: 3
+    q: 2
+    n: 40_000
+simulation_config:
+  # frame_end: 550 # end the simulation after this number of animation frames
+  frame_end: 258 # end the simulation after this number of animation frames
+blender_config:
+  plane_angle: 0
+  bevel: true # bevel the knot
+  view_location: [3, -8, 2] # camera
+  view_rotation: [1.2566370614359172, 0, 1.0471975511965976] # camera
+  # view_location: [-3, -3, 1] # camera
+  view_rotation: [1.5708, 0, -1.5708] # camera
+  initial_angle: 0.55 # pi/6 : initial angle to rotate the knot (around z-axis)
+  initial_knot_rotation_angle: -1.5707963267948966 # -pi/2
+  show_cm: true # show the center of mass in the simulation
+  # knot_location: [-2, 0, 0] # default location of the knot
+  knot_location: [0, 0, 0] # default location of the knot
+  knot_mass: 0.45 # weight of the knot for the simulation
+  cm_curve_color: [1.0, 0.0, 0.0, 1.0] # color of the center of mass curve

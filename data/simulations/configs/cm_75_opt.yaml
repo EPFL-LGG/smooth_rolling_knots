@@ -1,0 +1,24 @@
+knot_config:
+  name: "cm_75_opt"
+  type: file
+  path: "data/knots/KNOT_p_3_projected.obj"
+simulation_config:
+  frame_end: 250 # end the simulation after this number of animation frames
+blender_config:
+  # view_location: [3.5, -8, 2] # camera
+  # view_location: [5, -10, 7] # camera
+  # view_rotation: [1.15192, 0, 0.541052]
+  view_rotation: [0, 1.15, 0.541052]
+  view_rotation: [1.2566370614359172, 0, 1.0471975511965976] # camera
+  # view_location: [-3, -3, 1] # camera
+  # view_rotation: [1.5708, 0, -1.5708] # camera
+  plane_angle: 0
+  initial_angle: -0.30 # pi/6 : initial angle to rotate the knot (around z-axis)
+  initial_knot_rotation_angle: -1.5707963267948966 # -pi/2
+  show_cm: true # show the center of mass in the simulation
+  color: 1 # color of the knot
+  cm_curve_color: [0.0, 1.0, 0.0, 1.0] # color of the center of mass curve
+  # knot_location: [2.5, 0, 0] # default location of the knot
+  knot_location: [-4.5, 0, 0] # default location of the knot
+  knot_mass: 1.0 # weight of the knot for the simulation
+  pin_camera: true # pin the camera to the knot

@@ -1,0 +1,7 @@
+multi_config: true # whether the config is a list of configs (for multiple knots)
+configs: 
+  - data/simulations/configs/cm_75_opt.yaml
+  - data/simulations/configs/cm_75_base.yaml
+  # - data/simulations/configs/a5_p9.yaml
+  # - data/simulations/configs/a5_p7.yaml
+  # - data/simulations/configs/a5_p5.yaml
