@@ -94,8 +94,7 @@ def load_knot(filename:str, path:str="./data/") -> np.ndarray:
     """
     vertices = []
     edges = []
-
-    try: 
+    try:
         with open(os.path.join(path, filename), "r") as f:
             for line in f:
                 if line.startswith("v "):

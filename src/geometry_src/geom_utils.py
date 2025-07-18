@@ -40,7 +40,6 @@ def compute_center_of_mass(vertices:np.ndarray) -> np.ndarray:
     """
     return np.mean(vertices, axis=0)
 
-
 def compute_triange_normals(triangles:np.ndarray) -> np.ndarray:
     """
     Compute the normal vector of 3D triangles. The result is normalized.
@@ -305,6 +304,30 @@ def project_points_to_plane(points, plane_point, plane_normal):
 
     return projected_points
 
+def rotate_around_axis(points:np.ndarray, axis:np.ndarray, angle:float) -> np.ndarray:
+    """
+    Rotate points around a given axis by a specified angle.
+    """
+    axis = axis / np.linalg.norm(axis)  # Normalize the axis
+    cos_angle = np.cos(angle)
+    sin_angle = np.sin(angle)
+    
+    # Create the rotation matrix
+    rotation_matrix = np.array([
+        [cos_angle + axis[0]**2 * (1 - cos_angle), 
+         axis[0] * axis[1] * (1 - cos_angle) - axis[2] * sin_angle, 
+         axis[0] * axis[2] * (1 - cos_angle) + axis[1] * sin_angle],
+        
+        [axis[1] * axis[0] * (1 - cos_angle) + axis[2] * sin_angle, 
+         cos_angle + axis[1]**2 * (1 - cos_angle), 
+         axis[1] * axis[2] * (1 - cos_angle) - axis[0] * sin_angle],
+        
+        [axis[2] * axis[0] * (1 - cos_angle) - axis[1] * sin_angle, 
+         axis[2] * axis[1] * (1 - cos_angle) + axis[0] * sin_angle, 
+         cos_angle + axis[2]**2 * (1 - cos_angle)]
+    ])
+    
+    return points @ rotation_matrix.T\
 
 # DEVELOP CONVEX HULL (FAIL) ========================================================================================================================
 

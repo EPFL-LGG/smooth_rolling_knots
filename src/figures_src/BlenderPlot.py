@@ -6,31 +6,31 @@ from src.optimization_src.TDR_projection import split_index_list_in_two_segments
 
 from src.utils import load_knot
 from src.geometry_src.rolliness import rolliness, rolling_trajectory
+from src.geometry_src.geom import ellipse
 import numpy as np
 from src.geometry_src.geom_utils import  *
 from scipy.spatial.transform import Rotation as R
 
 class BlenderPlot():
-    def __init__(self) -> None:
-        pass
+    def __init__(self, config=None) -> None:
+        if config is not None: self.scene_setup(config)
 
     def scene_setup(self, config:BlenderConfig):
 
         # factory settings
         # bpy.ops.wm.read_factory_settings(use_empty=True)
 
-        # object mode   
-        bpy.ops.object.mode_set(mode='OBJECT')
+        # # object mode   
+        # if bpy.data.objects:
 
-        # remove all 
-        bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.object.delete()
+        #     bpy.ops.object.mode_set(mode='OBJECT')
 
-        # remove all objects
-        objs = bpy.data.objects
-        for obj in objs:
-            bpy.data.objects.remove(obj, do_unlink=True)
-        
+        #     # remove all 
+        #     bpy.ops.object.select_all(action='SELECT')
+        #     bpy.ops.object.delete()
+
+        self.clear_cache()
+
         bpy.context.scene.render.engine = config.renderer
         
         # viewport transform
@@ -220,12 +220,17 @@ class BlenderPlot():
             hull_config["convex_hull_points"] = False
             hull_config["closed"] = False
 
-            exterior, interior = get_exterior_interior_indices(points)
-
-            ext1, ext2 = split_index_list_in_two_segments(exterior)
-            # int1, int2 = get_exterior_segments(interior)
-            int1 = [*range(ext2[-1], n), *range(0, ext1[0]+1)]
-            int2 = list(range(ext1[-1], ext2[0]+1))
+            if "indices" in config.__dict__:
+                ext1 = config.indices[0]
+                int1 = config.indices[1]
+                ext2 = config.indices[2]
+                int2 = config.indices[3]
+            else:
+                exterior, interior = get_exterior_interior_indices(points)
+                ext1, ext2 = split_index_list_in_two_segments(exterior)
+                # int1, int2 = get_exterior_segments(interior)
+                int1 = [*range(ext2[-1], n), *range(0, ext1[0]+1)]
+                int2 = list(range(ext1[-1], ext2[0]+1))
 
             config = Config(config.__dict__)
             config.convex_hull_points = False
@@ -326,6 +331,9 @@ class BlenderPlot():
 
             # Set backface culling
             mat.show_transparent_back = False 
+
+            if bpy.context.scene.render.engine == 'CYCLES':
+                bpy.context.object.active_material.cycles.use_transparent_shadow = config.shadow
 
             # move to origin (sometimes its not ... idk why)
             obj.location = config.pos
@@ -443,6 +451,26 @@ class BlenderPlot():
         bpy.context.view_layer.update()
         bpy.context.view_layer.depsgraph.update()
 
+    def plot_torus(self, a, config, n=500):
+        b = np.sqrt(1 - a**2)
+        c = a/(1 + b)
+        r1 = c*1/a
+        r2 = c*b/a
+
+        torus_config = KnotConfig(config.__dict__)
+        torus_config.bevel_depth = r2
+
+
+        circle = ellipse(n, r1, r1)
+        self.plot_curve(circle, torus_config)
+
+        
+        
+        
+
+        
+
+
     # add plane to scene
     def add_enclosing_planes(self, x, y, z, planes = True): 
 
@@ -552,3 +580,40 @@ class BlenderPlot():
         # export as STL
         bpy.ops.export_mesh.stl(filepath=path, use_selection=True, global_scale=1.0, axis_up='Y', axis_forward='-Z')
         print(f"Exported knot to {path}")
+
+    def clear_cache(self):
+        # Remove all objects
+        for obj in bpy.data.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+        # Clear all meshes
+        for mesh in bpy.data.meshes:
+            bpy.data.meshes.remove(mesh, do_unlink=True)
+        # Clear all materials
+        for mat in bpy.data.materials:
+            bpy.data.materials.remove(mat, do_unlink=True)
+
+        # Clear all textures
+        for tex in bpy.data.textures:
+            bpy.data.textures.remove(tex, do_unlink=True)
+        
+        # Clear all images
+        for img in bpy.data.images:
+            bpy.data.images.remove(img, do_unlink=True)
+        
+        # Clear all curves
+        for curve in bpy.data.curves:
+            bpy.data.curves.remove(curve, do_unlink=True)
+
+        # Clear all collections
+        for collection in bpy.data.collections:
+            bpy.data.collections.remove(collection, do_unlink=True)
+
+        # Clear all text data
+        for text in bpy.data.texts:
+            bpy.data.texts.remove(text, do_unlink=True)
+
+        # Clear cache
+        bpy.ops.ptcache.free_bake_all()
+
+        # Remove all orphan data
+        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)

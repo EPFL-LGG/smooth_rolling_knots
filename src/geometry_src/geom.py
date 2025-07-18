@@ -89,6 +89,15 @@ def grad_Morton_knot_parametric(phi:float, a : float = 0.5831, p : int = 3, q : 
 
     return np.array([X, Y, Z]).T
 
+def Morton_knot_torus(a:float, n:int = 500):
+    """
+    The torus of a given Morton knot
+    """
+    b = np.sqrt(1 - a**2)
+    r1 = 1/a
+    r2 = b/a
+    return torus(r1, r2, n)
+
 def Morton_knot_no_radius_constraint(a : float = 0.5831, c : int = 1, n : int = 200, p : int = 3, q : int = 2) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
     """
     Exploratory code: testing out the effect of the radius constraint on the Morton knot
@@ -223,7 +232,11 @@ def torus(r1 : float = 4, r2 : float = 2, n=100) -> np.ndarray:
     x = (r1 + r2 * np.cos(theta)) * np.cos(phi)
     y = (r1 + r2 * np.cos(theta)) * np.sin(phi)
     z = r2 * np.sin(theta)
-    vertices = np.array([x, y, z]).T
+    # Flatten the arrays and stack them
+    x = x.flatten()
+    y = y.flatten()
+    z = z.flatten()
+    vertices = np.array([x, y, z]).T.reshape(-1, 3)
     return vertices
 
 def z_stretch(v : np.ndarray, stretch : float = 1) -> np.ndarray:
@@ -429,4 +442,3 @@ if __name__ == "__main__":
 
 
 
-    
