@@ -135,17 +135,23 @@ class CurveOpti():
         for key, value in kwargs.items():
             setattr(self, key, value)
 
+        self.validate_params()
+
+
     def default_params(self):
-        self.n_tdr_portion_indices = 20  # how many points to take from each TDR, to be attached to the interior points
         
+        # how many points to take from each TDR, to be attached to the interior points
+        # (this is where the exterior points will be sampled from)
+        self.n_tdr_portion_indices = 20
+
         # PARAM: If needed (e.g. p > 3), increase the number of interior control points here
-        self.n_cps_int_per_seg = 41 # Number of control points per segment of the interior part of the curve
+        self.n_cps_int_per_seg = 35 # Number of control points per segment of the interior part of the curve
         self.n_cps_ext_per_seg = 3 # Number of control points per segment of the exterior part of the curve
 
         self.w_knot = 1.0   
         self.w_tdr = 1e-2
         self.w_curvature = 1e1
-        self.curvature_cps = 1
+        self.curvature_cps = 4
         
         self.max_iter = 250
 
@@ -153,9 +159,12 @@ class CurveOpti():
 
         self.curvature_damping = 0.0
 
-        self.tdr_damping = 2.0
+        self.tdr_damping = 2.0 # Damping factor for the TDR attraction, must be even for symmetry preservation.
+    
+    def validate_params(self):
+        assert self.tdr_damping % 2 == 0 or self.tdr_damping == 1, "TDR damping must be even for symmetry preservation."
+        assert self.tdr_damping != 0, "TDR damping must be non-zero."
         
-
     def init_TDR(self, alpha, beta, gamma, n_tdr):
         
         self.tdr_ell1, self.tdr_ell2 = compute_aligned_tdr_disks(n_tdr, alpha, beta, gamma, rotated=True)
@@ -187,17 +196,6 @@ class CurveOpti():
         # Extract the interior points, sorted irrespective of the current location of the connection:
         # the new connection will be at the interface between interior and exterior.
         knot_interior1 = knot[interior_indices1]
-        knot_interior2 = knot[interior_indices2]
-
-        # Assemble the initial knot to be warped, s.t. the connection is at the interface between interior and exterior
-        knot_warped_init = torch.cat((
-            torch.flip(self.tdr_hull2, dims=[0])[-self.n_tdr_portion_indices:],
-            knot_interior1,
-            torch.flip(self.tdr_hull1, dims=[0])[:self.n_tdr_portion_indices],
-        ), dim=0)
-
-        knot_target = knot_interior1 # knot.clone()
-        closed_curve = False
 
         assert self.n_cps_int_per_seg % 2 == 1, "n_cps_int_per_seg must be odd to guarantee symmetry preservation"
         self.cps_ext_indices1 = np.arange(0, self.n_cps_ext_per_seg)
@@ -224,10 +222,8 @@ class CurveOpti():
 
         # determine the curvature range along which to compute the curvature
         curv_pts = int(self.factor_cps_to_pts * self.curvature_cps)
-        rng1 = self.pts_int_indices1[-curv_pts//2], self.pts_ext_indices2[self.n_pts_ext_per_seg//2]
-        rng2 = self.pts_ext_indices1[-self.n_pts_ext_per_seg//2], self.pts_int_indices1[curv_pts//2]
-        self.curvature_range_1 = np.arange(*rng1)
-        self.curvature_range_2 = np.arange(*rng2)
+        self.curvature_range_1 = slice(self.pts_int_indices1[-curv_pts//2], self.pts_ext_indices2[self.n_pts_ext_per_seg//2])
+        self.curvature_range_2 = slice(self.pts_ext_indices1[-self.n_pts_ext_per_seg//2], self.pts_int_indices1[curv_pts//2])
 
         # 1) Define the spline
         ts_cps = torch.linspace(0.0, 1.0, self.n_cps)
@@ -270,6 +266,16 @@ class CurveOpti():
             print("WARNING: Interior points outside the convex hull!")
 
     def optimize_curve_params(self, knot_target, closed_curve=False):
+        """
+        Optimize the curve parameters to match the knot target and attract the interior points to the TDR.
+        Args:
+            knot_target (torch.Tensor): The target knot to match.
+            closed_curve (bool): Whether the curve is closed or not.
+        Returns:
+            cps_opt (torch.Tensor): The optimized control points.
+            pts_opt (torch.Tensor): The optimized points on the curve.
+            history (list): The optimization history, including objective values, gradients and intermediate parameter values.
+        """
         
         # Initialize curve parameters
         if closed_curve:
@@ -281,6 +287,12 @@ class CurveOpti():
             params0 = np.concatenate([
                 self.cps_ref.reshape(-1,).numpy(),  # keep all points
             ], axis=0)
+
+        global opt_iter
+        opt_iter = -1 # will add the initial parameters as first increment
+
+        history = []
+        obj_history = np.empty((self.max_iter, 4))
 
         def obj_and_grad(params):
             params_torch = torch.tensor(params, dtype=TORCH_DTYPE)
@@ -296,10 +308,8 @@ class CurveOpti():
 
             # Match interior points to knot
             dist_knot = points_to_polyline_distance(pts, knot_target, reduce=None)
-            dist_knot = torch.sigmoid(dist_knot)
-            obj += self.w_knot * dist_knot.sum()
+            obj_knot = dist_knot.sum()  # sum over all points
 
-            
             # Attract the interior points to the TDR
             n_pts_int_selected = self.n_pts_int_per_seg // 2
             pts_junction_tdr_1 = self.pts_int_indices1[-n_pts_int_selected:]
@@ -308,21 +318,12 @@ class CurveOpti():
             dist2 = points_to_polyline_distance(pts[pts_junction_tdr_2], self.tdr_ell2, reduce=None)
             weights1 = torch.linspace(0.0, 1.0, n_pts_int_selected)**self.tdr_damping  # make the attraction fade in the interior
             weights2 = torch.linspace(1.0, 0.0, n_pts_int_selected)**self.tdr_damping
-            # dist1 = dist1 / torch.max(dist1)
-            # dist2 = dist2 / torch.max(dist2)
-            obj += self.w_tdr * torch.sum(weights1 * dist1)
-            obj += self.w_tdr * torch.sum(weights2 * dist2)
+            obj_tdr = torch.sum(weights1 * dist1) + torch.sum(weights2 * dist2)
             
-            # Smooth curve (minimize curvature)
             # obj += self.w_curvature * torch.sum(compute_curvature(pts, closed_curve=closed_curve)**2)
             # curvature = compute_curvature(pts, closed_curve=closed_curve)
-            # normalize curvature
-            # curvature = curvature / torch.max(torch.abs(curvature))
-            # curvature = torch.sigmoid(curvature)
             # w = torch.linspace(-1.0, 1.0, n_curvature)**self.curvature_damping
             # obj += self.w_curvature * toxch.sum(w * curvature**2)
-
-            # curv_pts = int((self.factor_cps_to_pts - 1) * 2)
 
             # compute the curvature centered around the junction points
             junction_pts_1 = pts[self.curvature_range_1]
@@ -330,27 +331,6 @@ class CurveOpti():
 
             curv1 = compute_curvature(junction_pts_1, closed_curve=False)
             curv2 = compute_curvature(junction_pts_2, closed_curve=False)
-
-            # if opt_iter == 100: 
-
-            #     plot_pts, plot_curv1, plot_curv2 = pts.detach().numpy(), curv1.detach().numpy(), curv2.detach().numpy()
-            #     plot_junction_pts_1 = junction_pts_1.detach().numpy()
-            #     plot_junction_pts_2 = junction_pts_2.detach().numpy()
-
-            #     from matplotlib import pyplot as plt
-            #     plt.plot(np.arange(curv_pts-2), plot_curv1)
-            #     plt.plot(np.arange(curv_pts-2), plot_curv2)
-            #     plt.show()
-
-            #     fig = plt.figure()
-            #     ax = fig.add_subplot(111, projection='3d')
-            #     ax.plot(*plot_pts.T, 'o-', label='Optimized', color='blue')
-            #     ax.plot(*plot_junction_pts_1.T, 'o-', label='Junction 1', color='red')
-            #     ax.plot(*plot_junction_pts_2.T, 'o-', label='Junction 2', color='green')
-            #     ax.legend()
-            #     plt.show()
-
-            #     return None, None
 
             # curvature = compute_curvature(pts, closed_curve=False)
 
@@ -367,14 +347,23 @@ class CurveOpti():
             # weights2 = torch.cat([torch.ones(self.n_pts_ext_per_seg), torch.linspace(1.0, 0.0, curv_pts-self.n_pts_ext_per_seg)**self.curvature_damping])
             weights1 = 1
             weights2 = 1
-            obj += self.w_curvature * torch.sum(weights1 * curv1**2)
-            obj += self.w_curvature * torch.sum(weights2 * curv2**2)
+            obj_curvature = torch.sum(weights1 * curv1**2) + torch.sum(weights2 * curv2**2)
+            
+            # bring everything together
+            obj += self.w_knot * obj_knot + self.w_tdr * obj_tdr + self.w_curvature * obj_curvature
 
             obj.backward()
 
-            # ---------------------------------
 
-            return obj.item(), params_torch.grad.numpy()
+            # ---------------------------------
+            
+            obj_val = obj.item()
+            grad_val = params_torch.grad.numpy()
+
+            global opt_iter
+            obj_history[opt_iter, :] = np.array([obj_val, obj_knot.item(), obj_tdr.item(), obj_curvature.item()])
+
+            return obj_val, grad_val
 
         obj_and_grad_scipy = lambda params: obj_and_grad(
             params
@@ -395,19 +384,15 @@ class CurveOpti():
         for idx in fixed_indices:
             bounds[idx] = (params0[idx], params0[idx])
 
-        torch.autograd.set_detect_anomaly(False)
-
-        global opt_iter
-        opt_iter = 0
-        history = []
-
-        history.append(params0)
-
         def callback(params):
             global opt_iter
             opt_iter += 1
-            history.append(params)
+            params_torch = torch.tensor(params, dtype=TORCH_DTYPE)
+            history.append(params_torch)
 
+        callback(params0)
+
+        torch.autograd.set_detect_anomaly(False)
 
         result = minimize(
             obj_and_grad_scipy, params0, jac=True, 
@@ -418,13 +403,13 @@ class CurveOpti():
         )
 
         print(f"Optimization took {opt_iter} iterations. Parameters: wcurv: {self.w_curvature}, wtdr: {self.w_tdr}, wknot: {self.w_knot}")
-
+    
         params_opt = torch.tensor(result.x)
         cps_opt = self.compute_control_points_from_opt_params(params_opt, closed_curve=closed_curve)
         pts_opt = self.compute_curve_from_opt_params(params_opt, closed_curve=closed_curve)
         self.check_interior(pts_opt)
 
-        return cps_opt, pts_opt
+        return cps_opt, pts_opt, [obj_history[:opt_iter+1], history]
 
     def reconstruct_full_knot(self, pts_opt):
         # pts_int_indices1 = np.arange(n_pts_ext_per_seg - 5, n_pts_ext_per_seg + n_pts_int_per_seg + 1)
@@ -436,15 +421,5 @@ class CurveOpti():
             torch.flip(self.tdr_hull1, dims=[0]),
             pts_opt_interior_symmetrized,
         ), dim=0)
-
-        import matplotlib.pyplot as plt
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        ax.plot(*pts_opt.T, 'o-', label='Optimized', color='blue')
-        ax.plot(*pts_opt[self.curvature_range_1].T, 'o-', label='Curvature range', color='orange')
-        ax.plot(*pts_opt_interior_symmetrized.T, 'o-', label='Interior symmetrized', color='red')
-        ax.plot(*knot_full.T, 'o-', label='Full knot', color='green', alpha=0.5, markersize=1)
-        ax.legend()
-        plt.show()
 
         return knot_full

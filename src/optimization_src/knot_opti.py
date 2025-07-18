@@ -30,7 +30,7 @@ class KnotOpti():
         self.save_path = "../data/knots/"
         self.n = None
 
-    def name(self, x):
+    def name(self, x=None):
         a = self.a
         p = self.p
         n = self.n
@@ -38,9 +38,11 @@ class KnotOpti():
         if hasattr(self, "w_tdr") and hasattr(self, "w_curvature"):
             wtdr = self.w_tdr
             wcurv = self.w_curvature
-            return f"KNOT_a_{first_nonzero_digits(a)}_p_{p}_n_{n//1000}k_wtdr_{scientific(wtdr)}_wcurv_{scientific(wcurv)}_{x}.obj"
+            name = f"KNOT_a_{first_nonzero_digits(a)}_p_{p}_n_{n//1000}k_wtdr_{scientific(wtdr)}_wcurv_{scientific(wcurv)}"
         else:
-            return f"KNOT_a_{first_nonzero_digits(a)}_p_{p}_n_{n//1000}k_{x}.obj"
+            name = f"KNOT_a_{first_nonzero_digits(a)}_p_{p}_n_{n//1000}k"
+
+        return f"{name}_{x}.obj" if x is not None else f"{name}.obj"
 
     
     @staticmethod
@@ -110,20 +112,21 @@ class KnotOpti():
 
     def curve_optimization(self):
 
-        co = CurveOpti(**self.curve_opt_params)
-        co.init_TDR(self.alpha, self.beta, self.gamma, self.n_tdr)
+        self.co = CurveOpti(**self.curve_opt_params)
+        self.co.init_TDR(self.alpha, self.beta, self.gamma, self.n_tdr)
 
-        self.tdr1 = co.tdr_ell1
-        self.tdr2 = co.tdr_ell2
+        self.tdr1 = self.co.tdr_ell1
+        self.tdr2 = self.co.tdr_ell2
 
-        co.stitch_interior(self.stretched_knot)
+        self.co.stitch_interior(self.stretched_knot)
         
-        cps_opt, pts_opt = co.optimize_curve_params(self.stretched_knot)
+        cps_opt, pts_opt, hist = self.co.optimize_curve_params(self.stretched_knot)
+
 
         # Check that the interior points are still inside the TDR's convex hull
-        co.check_interior(pts_opt)
+        self.co.check_interior(pts_opt)
 
-        return co.reconstruct_full_knot(pts_opt)
+        return self.co.reconstruct_full_knot(pts_opt), hist
 
     def optimize(self):
 
@@ -135,13 +138,11 @@ class KnotOpti():
         self.beta = beta
         self.gamma = gamma
 
-        self.projected_knot = self.curve_optimization()
+        self.projected_knot, self.hist = self.curve_optimization()
+        self.params_hist = self.hist[1]
 
         return self.projected_knot
 
-
-
-
-
-
-
+    def knots_hist(self):
+        pts = list(map(lambda x: self.co.compute_curve_from_opt_params(x, closed_curve=False), self.params_hist))
+        return list(map(lambda x: self.co.reconstruct_full_knot(x), pts))
