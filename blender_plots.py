@@ -29,8 +29,9 @@ utils.reload_modules()
 from optimization_src.knot_opti import KnotOpti
 from src.figures_src.BlenderPlot import BlenderPlot
 from src.figures_src.Configs import BlenderConfig, KnotConfig
-from src.figures_src.figures import color1, color2, color3, normalize_color  
+from src.figures_src.figures import color1, color2, color3, color4, normalize_color  
 from src.optimization_src.TDR_projection import get_exterior_interior_indices
+from src.geometry_src import geom
 
 knots_dir = "data/knots/"
 
@@ -50,49 +51,60 @@ colors = [knot_color, disk_color, proj_color, green, black]
 first_nonzero_digit = lambda x: next((i for i in str(x) if i not in ['0', '.']), None)
 first_nonzero_digits = lambda x: str(x)[2:]
 
-plots_path = "/data/blender_plots/"
+plots_path = "data/blender_plots/"
 prefix = lambda i: f"figure_{i}_"
 filename = lambda a, p, n, x: f"KNOT_a_{first_nonzero_digits(a)}_p_{p}_n_{n//1000}k_{x}.obj"
-render_path = lambda i, a, p, n, x: PATH + plots_path + prefix(i) + f"{first_nonzero_digits(a)}_{p}_"+ x + ".png"
+render_path = lambda i, a, p, n, x: os.path.join(PATH, plots_path + prefix(i) + f"{first_nonzero_digits(a)}_{p}_"+ x + ".png")
 data_path = lambda a, p, n, x: os.path.join(PATH, knots_dir, filename(a,p,n,x))
 
-def render_base_stretched_projected(i, ko, bp, knot_config, blender_config):
-        
-        blender_config["renderer"] = "CYCLES"
+def render_knot(knot, i, ko, bp, knot_config, blender_config, xyz = [], tdr1=None, tdr2=None, tdr_config=None):
+    x, y, z = xyz if len(xyz) == 3 else None, None, None
+    blender_config["renderer"] = "CYCLES"
+    a,p,n = ko.a, ko.p, ko.n
+    ko.save_path = os.path.join(PATH, knots_dir)
+    bp.scene_setup(blender_config)
+    if xyz: bp.add_enclosing_planes(*xyz)
+    if tdr1 is not None: bp.plot_curve(tdr1, tdr_config) if tdr_config else bp.plot_curve(tdr1, knot_config)
+    if tdr2 is not None: bp.plot_curve(tdr2, tdr_config) if tdr_config else bp.plot_curve(tdr2, knot_config)
+    bp.plot_curve(knot, knot_config)
+    bp.render(render_path(i, a, p, n, "knot"))
 
-        a,p,n = ko.a, ko.p, ko.n
+def render_base_stretched_projected(i, ko, bp, knot_config, blender_config, xyz = [-1.5, 1, -0.8]):
+    x, y, z = xyz if len(xyz) == 3 else None, None, None
+    
+    blender_config["renderer"] = "CYCLES"
 
-        ko.save_path = os.path.join(PATH, knots_dir)
+    a,p,n = ko.a, ko.p, ko.n
 
-        base = ko.load("base")
-        stretched = ko.load("stretched")
-        projected = ko.load("projected")
+    ko.save_path = os.path.join(PATH, knots_dir)
 
-        bp.scene_setup(blender_config)
-        xyz = [-1.5, 1, -0.8] 
-        x, y, z = xyz 
-        bp.add_enclosing_planes(*xyz)
-        # bp.plot_projection(base, knot_config, plane="xy", pos=z)
-        # bp.plot_projection(base, knot_config, plane="yz", pos=x)
-        # bp.plot_projection(base, knot_config, plane="xz", pos=y)
-        bp.plot_curve(base, knot_config)
-        bp.render(render_path(i, a, p, n, "base"))
-        
-        bp.scene_setup(blender_config)
-        bp.add_enclosing_planes(*xyz)
-        # bp.plot_projection(base, knot_config, plane="xy", pos=z)
-        # bp.plot_projection(base, knot_config, plane="yz", pos=x)
-        # bp.plot_projection(base, knot_config, plane="xz", pos=y)
-        bp.plot_curve(stretched, knot_config)
-        bp.render(render_path(i, a, p, n, "stretched"))
+    base = ko.load("base")
+    stretched = ko.load("stretched")
+    projected = ko.load("projected")
 
-        bp.scene_setup(blender_config)
-        # bp.plot_projection(base, knot_config, plane="xy", pos=z)
-        # bp.plot_projection(base, knot_config, plane="yz", pos=x)
-        # bp.plot_projection(base, knot_config, plane="xz", pos=y)
-        bp.add_enclosing_planes(*xyz)
-        bp.plot_curve(projected, knot_config)
-        bp.render(render_path(i, a, p, n, "projected"))
+    bp.scene_setup(blender_config)
+    if xyz: bp.add_enclosing_planes(*xyz)
+    # bp.plot_projection(base, knot_config, plane="xy", pos=z)
+    # bp.plot_projection(base, knot_config, plane="yz", pos=x)
+    # bp.plot_projection(base, knot_config, plane="xz", pos=y)
+    bp.plot_curve(base, knot_config)
+    bp.render(render_path(i, a, p, n, "base"))
+    
+    bp.scene_setup(blender_config)
+    if xyz: bp.add_enclosing_planes(*xyz)
+    # bp.plot_projection(base, knot_config, plane="xy", pos=z)
+    # bp.plot_projection(base, knot_config, plane="yz", pos=x)
+    # bp.plot_projection(base, knot_config, plane="xz", pos=y)
+    bp.plot_curve(stretched, knot_config)
+    bp.render(render_path(i, a, p, n, "stretched"))
+
+    bp.scene_setup(blender_config)
+    # bp.plot_projection(base, knot_config, plane="xy", pos=z)
+    # bp.plot_projection(base, knot_config, plane="yz", pos=x)
+    # bp.plot_projection(base, knot_config, plane="xz", pos=y)
+    if xyz: bp.add_enclosing_planes(*xyz)
+    bp.plot_curve(projected, knot_config)
+    bp.render(render_path(i, a, p, n, "projected"))
 
 def export_bevel(ko, bp, knot_config, blender_config):
         
@@ -193,10 +205,10 @@ def figure_2():
     # name = "KNOT_a_6_p_7_n_0k_wtdr_4.00e-03_wcurv_5.00e+02_tdr2"
     # name = "KNOT_a_6_p_7_n_0k_wtdr_3.00e-03_wcurv_6.00e+02_tdr2"
     # name = "KNOT_a_7_p_3_n_1k_wtdr_1.00e-02_wcurv_1.50e+02_projected"
-    # name  = "KNOT_a_7_p_3_n_1k_wtdr_3.00e-02_wcurv_1.00e+03_projected"
+    name  = "KNOT_a_7_p_3_n_1k_wtdr_3.00e-02_wcurv_1.00e+03_projected"
     # name  = "KNOT_a_7_p_3_n_10k_wtdr_5.00e-02_wcurv_1.00e+03_tdr2"
     
-    name = "KNOT_a_75_p_3_n_1k_stretched" # THIS ONE
+    # name = "KNOT_a_75_p_3_n_1k_stretched" # THIS ONE
 
     # name = "KNOT_a_75_p_3_n_2k_wtdr_4.00e-02_wcurv_1.50e+04_projected"
 
@@ -554,12 +566,277 @@ def figure_3():
     
     global knots_dir
     knots_dir = "data/knots/figure_3_knots/no_bevel/"
+
+    # render("KNOT_a_3_p_3_n_2k_wtdr_1.00e+01_wcurv_1.00e+01")
+    # render("KNOT_a_5_p_3_n_2k_wtdr_1.00e+01_wcurv_1.00e+05")
+    # render("KNOT_a_5_p_5_n_1k_wtdr_5.50e-01_wcurv_5.50e+07")
+    # render("KNOT_a_5_p_7_n_2k_wtdr_4.50e-01_wcurv_5.00e+05")
+    # render("KNOT_a_5_p_9_n_3k_wtdr_1.00e+01_wcurv_4.50e+03")
+    render("KNOT_a_9_p_3_n_1k_wtdr_6.00e+00_wcurv_1.00e+06")
+
+def render_hist():
+
+    # dir = "KNOT_a_9_p_3_n_5k_wtdr_2.00e+00_wcurv_1.00e+07_hist"
+    dir = "KNOT_a_9_p_3_n_1k_wtdr_6.00e+00_wcurv_1.00e+06_hist"
+
+    global knots_dir
+    knots_dir = f"data/knots/{dir}/"
+
+    global plots_path
+    plots_path = f"data/blender_plots/{dir}/"
+
+    os.makedirs(plots_path, exist_ok=True)
+
+    # naming
+    global prefix
+    prefix = lambda i: f"step_{i}_"
+
+    ko = KnotOpti.parse_name(dir)
+    ko.save_path = knots_dir
+
+    tdr1 = ko.load("tdr2")
+    tdr2 = ko.load("tdr1")
+
+    knot_config = KnotConfig({})
+    blender_config = BlenderConfig({})
+
+        # blender_config["view_location"] = [1.3, -2, 1.25] # camera
+    pos = [1.52 , -1.52, 1.1]
+    blender_config["view_location"] = pos # camera
+    blender_config["view_rotation"] = [np.radians(66), 0, np.radians(45)] # camera
+    blender_config["ortho_scale"] = 4
+
+    light_position = [0, -1, 0.5]
+    blender_config["light_position"] = light_position
+    # blender_config["light_rotation"] = np.radians([64, 0, 0])
+    blender_config["light_rotation"] = [np.radians(66), 0, np.radians(45)] # camera
+    blender_config["light_strength"] = 4
     
-    render("KNOT_a_3_p_3_n_2k_wtdr_1.00e+01_wcurv_1.00e+01")
-    render("KNOT_a_5_p_3_n_2k_wtdr_1.00e+01_wcurv_1.00e+05")
-    render("KNOT_a_5_p_5_n_1k_wtdr_5.50e-01_wcurv_5.50e+07")
-    render("KNOT_a_5_p_7_n_2k_wtdr_4.50e-01_wcurv_5.00e+05")
-    render("KNOT_a_5_p_9_n_3k_wtdr_1.00e+01_wcurv_4.50e+03")
+    blender_config["ortho_scale"] = 4.5
+
+    knot_config["bevel_depth"] = 0.03
+    knot_config["proj"] = False
+
+    tdr_config = KnotConfig({
+        "bevel_depth": 0.02,
+        "color": tdr_color,
+    })
+
+    knot_config["convex_hull_points"] = True
+    knot_config.hull_color = hull_color_transparent
+    knot_config.color[:3] = knot_color[:3]
+    knot_config.hull_color[:3] = hull_color_transparent[:3]
+    tdr_config.color[:3] = tdr_color[:3]
+
+    n = 1720
+    junction = 733
+    middle = n // 2
+    junction_2 = 1592
+
+    knot_config["indices"] = [
+        np.arange(0, junction), # exterior 1
+        np.arange(junction-2, middle+2), # interior 1
+        np.arange(middle, junction_2), # exterior 2
+        np.array(list(range(junction_2-2, n)) + [0,1]) # interior 2
+    ]
+
+    
+    bp = BlenderPlot()
+
+    MAX_STEP = 39
+
+    for file in os.listdir(knots_dir):
+        if file.endswith(".obj"):
+            name = file.strip(".obj")
+            step = name.split("_")[-1]
+            step = int(step) if step.isdigit() else np.inf
+            if step <= MAX_STEP:
+                print(f"Rendering {name} with step {step}")
+                ko = KnotOpti.parse_name(name)
+                ko.save_path = knots_dir
+                try: 
+                    knot = ko.load(f"step_{step}")
+                    render_knot(knot, step, ko, bp, knot_config, blender_config, tdr1=tdr1, tdr2=tdr2, tdr_config=tdr_config)
+                    
+                except Exception as e:
+                    print(f"Error rendering {name}: {e}")
+
+def tdr_plot():
+    bp = BlenderPlot()
+    bp.clear_cache()
+    
+    knot_config = KnotConfig({})
+    blender_config = BlenderConfig({})
+
+    # blender_config["renderer"] = "CYCLES"
+
+    # knot convex hull
+    blender_config.view_rotation = [np.radians(57.5), 0, 0]
+    blender_config.view_location = [0, -2.75, 1.75]
+    blender_config.ortho_scale = 4
+
+    blender_config.light_rotation = [np.radians(23), np.radians(23), np.radians(-43)]
+    blender_config.light_location = [0, -2, 3.5]
+
+    knot_config.convex_hull_points = False
+    knot_config.bevel_depth = 0.02
+
+    knot_config.color = color2
+    # knot_config.color = color3
+
+    knot_hull_config = KnotConfig(knot_config.__dict__)
+    knot_hull_config.color[3] = 0.5
+
+
+    a,b,c = 1, 1, 1
+    # a,b,c = 1, 1, np.sqrt(2)
+    disk1, disk2 = geom.TDR_disks(n=500, a=a, b=b, c=c)
+    tdr = np.vstack([disk1, disk2])
+
+    bp.scene_setup(blender_config)
+
+    bp.plot_curve(disk1, knot_config)
+    bp.plot_curve(disk2, knot_config)
+    bp.plot_hull(tdr, knot_hull_config)
+
+    cm1 = disk1.mean(axis=0)
+    cm2 = disk2.mean(axis=0)
+
+    bp.plot_sphere(cm1, radius=0.03)
+    bp.plot_sphere(cm2, radius=0.03)
+    
+    treat_decimal = lambda x: str(x).replace('.','p')
+    bp.render(os.path.join(plots_path,f"tdr_{treat_decimal(a)}_{treat_decimal(b)}_{treat_decimal(c)}.png"))
+
+def knot_hulls():
+    knot_config = KnotConfig({})
+    blender_config = BlenderConfig({})
+
+    knot_config.convex_hull_points = True
+    knot_config.hull_color = hull_color_transparent
+
+    knot_hull_config = KnotConfig(knot_config.__dict__)
+    knot_hull_config.color[3] = 0.5
+
+
+    line_config = KnotConfig({
+        "bevel_depth": 0.004,
+        "color": black,
+        "closed": False
+    })
+
+    pos = [1.52 , -1.52, 1.1]
+    blender_config["view_location"] = pos # camera
+    blender_config["view_rotation"] = [np.radians(66), 0, np.radians(45)] # camera
+    blender_config["ortho_scale"] = 4
+
+    light_position = [0, -1, 0.5]
+    blender_config["light_position"] = light_position
+    blender_config["light_rotation"] = np.radians([64, 0, 0])
+
+    blender_config["renderer"] = "CYCLES"
+    
+    blender_config["ortho_scale"] = 4.5
+
+    knot_config["bevel_depth"] = 0.03
+
+    bp = BlenderPlot()
+
+    knot_config.color = knot_color
+    # knot_config.color[:3] /= 11 
+    knot_config.color[:3] /= 25
+    knot_config.hull_color[:3] /= 25
+
+    knot_config.shader = "diffuse"
+
+
+    a = 0.9
+    p = 3
+    n = 1001
+    knot = geom.rotated_morton_knot_parametric(phi=np.arange(0, 2 * np.pi, 2 * np.pi / n), a=a, p=p)
+
+    xyz = [-1.5, 1, -0.8]
+    x, y, z = xyz
+
+    bp = BlenderPlot(blender_config)
+    bp.plot_curve(knot, knot_config)
+    bp.plot_hull(knot, knot_hull_config)
+    bp.add_enclosing_planes(x, y, z)
+    bp.plot_orthogonal_lines(line_config, x)
+    bp.render(os.path.join(plots_path, f"knot_hull_a{a}_p{p}_n{n}.png"))
+
+    zstretch = 2.495
+    stretched_knot = geom.z_stretch(knot, zstretch)
+
+    bp.scene_setup(blender_config)
+
+    bp.plot_curve(stretched_knot, knot_config)
+    bp.plot_orthogonal_lines(line_config, x)
+    bp.plot_hull(stretched_knot, knot_hull_config)
+    bp.add_enclosing_planes(x, y, z)
+    bp.render(os.path.join(plots_path, f"knot_hull_a{a}_p{p}_n{n}_zstretch{str(zstretch).replace('.', 'p')}.png"))
+
+    n = 500
+    
+    knot_config.color[:3] = color3[:3] / 7
+
+    knot_hull_config.color[:3] = color3[:3]
+    disk1, disk2 = geom.TDR_disks(n=n, a=0.85, b=1.0, c=0.5)
+    tdr = np.vstack([disk1, disk2])
+    from src.geometry_src.geom_utils import rotate_around_axis
+    tdr = rotate_around_axis(tdr, axis=np.array([1, 0, 0]), angle=-np.pi/4)
+    bp.scene_setup(blender_config)
+    disk1 = tdr[:500]
+    disk2 = tdr[500:]
+    bp.plot_curve(disk1, knot_config)
+    bp.plot_curve(disk2, knot_config)
+    bp.plot_hull(tdr, knot_hull_config)
+    bp.add_enclosing_planes(x, y, z)
+    bp.render(os.path.join(plots_path, f"tdr_a{a}_p{p}_n{n}.png"))
+
+def knot_torus():
+    knot_config = KnotConfig({})
+    blender_config = BlenderConfig({})
+
+    knot_config.convex_hull_points = False
+    knot_hull_config = KnotConfig(knot_config.__dict__)
+    knot_hull_config.color[3] = 0.1
+    knot_hull_config.shadow = True
+
+    pos = [1.52 , -1.62, 1.5]
+    blender_config["view_location"] = pos # camera
+    blender_config["view_rotation"] = [np.radians(58), 0, np.radians(45)] # camera
+    blender_config["ortho_scale"] = 4
+
+    light_position = [0, -1, 0.5]
+    blender_config["light_position"] = pos
+    # blender_config["light_rotation"] = np.radians([64, 0, 0])
+    blender_config["light_rotation"] = [np.radians(58), 0, np.radians(45)]
+
+
+    blender_config["renderer"] = "CYCLES"
+    
+    blender_config["ortho_scale"] = 4.5
+
+    knot_config["bevel_depth"] = 0.03
+
+    bp = BlenderPlot()
+
+    knot_config.color = knot_color
+    knot_config.shader = "diffuse"
+
+    p, n = 3, 1001
+    aa = [0.3, 0.5, 0.9]
+
+    for a in aa:
+        knot = geom.rotated_morton_knot_parametric(phi=np.arange(0, 2 * np.pi, 2 * np.pi / n), a=a, p=p)
+
+        bp.scene_setup(blender_config)
+
+        bp.plot_curve(knot, knot_config)
+        bp.plot_torus(a, knot_hull_config)
+        
+        bp.render(os.path.join(plots_path, f"knot_torus_a{a}_p{p}_n{n}.png"))
 
 def export_knots():
 
@@ -580,7 +857,7 @@ def export_knots():
 
     knot_config["bevel_depth"] = 0.02
 
-    bp = BlenderPlot()
+    bp = BlenderPlot(blender_config)
 
     export = lambda name: export_bevel(KnotOpti.parse_name(name), bp, knot_config, blender_config)
 
@@ -593,14 +870,77 @@ def export_knots():
     # export("KNOT_a_5_p_5_n_1k_wtdr_5.50e-01_wcurv_5.50e+07")
     # export("KNOT_a_5_p_7_n_2k_wtdr_4.50e-01_wcurv_5.00e+05")
     export("KNOT_a_5_p_9_n_3k_wtdr_1.00e+01_wcurv_4.50e+03")
-    
-if __name__ == "<run_path>":
 
+def generalized_knots():
+    knot_config = KnotConfig({})
+    blender_config = BlenderConfig({})
+
+    knot_config.convex_hull_points = False
+
+    knot_hull_config = KnotConfig(knot_config.__dict__)
+    knot_hull_config.color[3] = 0.5
+
+    pos = [1.52 , -1.52, 1.1]
+    blender_config["view_location"] = pos # camera
+    blender_config["view_rotation"] = [np.radians(66), 0, np.radians(45)] # camera
+    blender_config["ortho_scale"] = 4
+
+    light_position = [0, -1, 0.5]
+    # blender_config["light_position"] = light_position
+    blender_config["light_position"] = pos 
+    # blender_config["light_rotation"] = np.radians([64, 0, 0])
+    blender_config["light_rotation"] = [np.radians(66), 0, np.radians(45)] # camera
+
+    blender_config["renderer"] = "CYCLES"
+    
+    blender_config["ortho_scale"] = 4.5
+
+    knot_config["bevel_depth"] = 0.03
+
+    bp = BlenderPlot()
+
+    knot_config.shader = "diffuse"
+
+    colors = [
+        color1,
+        color2,
+        color3,
+        color4
+    ]
+
+    names = ["KNOT_a_5_p_3_n_2k_wtdr_1.00e+01_wcurv_1.00e+05",
+    "KNOT_a_5_p_5_n_1k_wtdr_5.50e-01_wcurv_5.50e+07",
+    "KNOT_a_5_p_7_n_2k_wtdr_4.50e-01_wcurv_5.00e+05",
+    "KNOT_a_5_p_9_n_3k_wtdr_1.00e+01_wcurv_4.50e+03"]
+
+
+    bp = BlenderPlot(blender_config)
+    for i, name in enumerate(names):
+        ko = KnotOpti.parse_name(name)
+        ko.save_path = knots_dir + "figure_3_knots/no_bevel/"
+
+        a, p, n = ko.a, ko.p, ko.n
+
+        knot = ko.load("base")
+        knot_config.color = colors[i]
+
+        bp.scene_setup(blender_config)
+        bp.plot_curve(knot, knot_config)
+        bp.render(os.path.join(plots_path, f"generalized_a{a}_p{p}.png"))
+
+if __name__ == "<run_path>":
+    bp = BlenderPlot()
+    
     # figure_1()
     # figure_2()
     # figure_2_smooth_alt()
     # figure_3()
-    export_knots()
+    # render_hist()
+    # tdr_plot()
+    # knot_hulls()
+    # knot_torus()
+    generalized_knots()
+    # export_knots()
 
 
 

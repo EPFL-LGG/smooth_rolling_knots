@@ -8,3 +8,4 @@ def normalize_color(color):
 color1 = normalize_color((0, 120, 255, 1))
 color2 = normalize_color((255, 153, 2, 1))
 color3 = normalize_color((26, 163, 26, 1))
+color4 = normalize_color((163, 26, 26, 1))
